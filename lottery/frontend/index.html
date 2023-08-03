@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdn.jsdelivr.net/gh/ethereum/web3.js/dist/web3.min.js"></script>
+    <style>
+      .header {
+        font-family: sans-serif;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Lottery page</h2>
+    <h2 id="info"></h2>
+    <br />
+    <button onclick= onBuyTicket()>Buy Ticket</button>
+    <p>Lottery Prize Pool: <span id="balance"> ???</span></p>
+    <p>Player Prize Pool: <span id="balance_player"> ???</span></p>
+    <p>Tickets sold: <span id="tickets"> ???</span></p>
+    Status: <span id="status">Loading...</span>
+    <script type="text/javascript">
+
+        let web3;
+        let contractABI = [
+        {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
+        }
+      ],
+      "name": "Loose",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "Win",
+      "type": "event"
+    },
+    {
+      "inputs": [],
+      "name": "buyTicket",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getNumTickets",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "isWinning",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "maxNum",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "minNum",
+          "type": "uint256"
+        }
+      ],
+      "name": "random",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+        ];
+        let contractAddress = "0x3E03ecD8c83e0689f936D891576daF0d7843298e";
+        let contract;
+
+        async function loadWeb3() {
+        if (window.ethereum) {
+            web3 = new Web3(window.ethereum);
+            window.ethereum.enable();
+        } else {
+            alert("No Ethereum provider found!");
+        }
+        }
+
+        async function load() {
+            await loadWeb3();
+            contract = new web3.eth.Contract(contractABI, contractAddress);
+            await updatePrizePool();
+            await updatePrizePoolPlayer();
+            await updateNumTickets();
+            updateStatus("Ready");
+        }
+
+        async function updatePrizePool() {
+            const amount = await web3.eth.getBalance(contractAddress);
+            const balanceEl = document.getElementById("balance");
+            const balanceToEther = web3.utils.fromWei(amount.toString(), "ether");
+            balanceEl.innerHTML = balanceToEther;
+        }
+
+        async function updatePrizePoolPlayer() {
+            const account = (await web3.eth.getAccounts())[0];
+            const amount = await web3.eth.getBalance("0xD5961Bf0E16559DF8ea8DfeBF34fb4fCce42E54A");
+            const balanceEl = document.getElementById("balance_player");
+            const balanceToEther = web3.utils.fromWei(amount.toString(), "ether");
+            balanceEl.innerHTML = balanceToEther;
+        }
+
+        async function updateNumTickets() {
+            
+            const balanceEl = document.getElementById("tickets");
+            const balanceToEther = await contract.methods.getNumTickets().call();
+            balanceEl.innerHTML = balanceToEther;
+        }
+
+        function updateStatus(status) {
+            const statusEl = document.getElementById("status");
+            statusEl.innerHTML = status;
+            console.log(status);
+        }
+
+        async function onBuyTicket() {
+            updateStatus("Buying a ticket....");
+            const account = (await web3.eth.getAccounts())[0];
+            const rc = await contract.methods
+                .buyTicket()
+                .send({ from: account, value: web3.utils.toWei("1", "ether") });
+            console.log(rc);
+
+            const win = rc.events.Win;
+            const loose = rc.events.Loose;
+
+            if (loose){
+                updateStatus("You lost. Try again!");
+            } else if (win) {
+                const amount = web3.utils.fromWei(
+                win.returnValues.amount.toString(),"ether");
+                updateStatus(`You've won ${amount}ETH.`);
+            } else {
+                updateStatus("There was an error");            
+            }
+            window.location.reload();
+            
+        }
+        load();
+
+    </script>
+  </body>
+</html>
